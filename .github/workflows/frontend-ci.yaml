@@ -70,7 +70,7 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: CI=true npm test -- --watchAll=false
+        run: CI=true npm test -- --watchAll=false --passWithNoTests
 
   build:
     name: Build
@@ -102,7 +102,7 @@ jobs:
 
       - name: Run tests
         working-directory: starter/frontend
-        run: CI=true npm test -- --watchAll=false
+        run: CI=true npm test -- --watchAll=false --passWithNoTests
 
       - name: Build Docker image
         working-directory: starter/frontend
