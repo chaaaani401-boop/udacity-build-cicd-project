@@ -75,9 +75,9 @@ jobs:
     needs: [lint, test]
     defaults:
       run:
-        working-directory: starter/frontend
+        working-directory: frontend
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build Docker image
