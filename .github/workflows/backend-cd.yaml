@@ -1,4 +1,4 @@
-name: Backend CD
+name: Backend Continuous Deployment
 
 on:
   push:
@@ -7,36 +7,69 @@ on:
     paths:
       - 'starter/backend/**'
       - '.github/workflows/backend-cd.yaml'
+  workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy backend to EKS
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: starter/backend
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: pipenv install --dev
+
+      - name: Run lint
+        run: pipenv run lint
+
+      - name: Run tests
+        run: pipenv run test
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig \
-            --region us-east-1 \
-            --name cluster
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy backend
-        run: |
-          kubectl apply -f starter/backend/k8s/
+      - name: Build Docker image
+        run: docker build -t backend-app .
 
-      - name: Check deployment
+      - name: Tag Docker image
         run: |
-          kubectl rollout status deployment/backend
+          docker tag backend-app:latest \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.BACKEND_ECR_REPO }}:latest
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.BACKEND_ECR_REPO }}:latest
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ secrets.EKS_CLUSTER_NAME }} \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to Kubernetes
+        run: kubectl apply -f k8s/
+
+      - name: Verify deployment
+        run: kubectl get pods
