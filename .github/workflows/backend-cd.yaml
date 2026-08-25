@@ -69,7 +69,7 @@ jobs:
             --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy to Kubernetes
-        run: kubectl apply -f k8s/
+        run: kubectl apply -k k8s/
 
       - name: Verify deployment
         run: kubectl get pods
