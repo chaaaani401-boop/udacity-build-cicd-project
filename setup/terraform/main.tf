@@ -186,19 +186,20 @@ resource "aws_iam_role_policy_attachment" "eks_service" {
 ##################
 # EKS Node Group
 ##################
-# Track latest release for the given k8s version
-data "aws_ssm_parameter" "eks_ami_release_version" {
-  name = "/aws/service/eks/optimized-ami/${aws_eks_cluster.main.version}/amazon-linux-2/recommended/release_version"
-}
-
 resource "aws_eks_node_group" "main" {
   node_group_name = "udacity"
   cluster_name    = aws_eks_cluster.main.name
   version         = aws_eks_cluster.main.version
-  node_role_arn   = aws_iam_role.node_group.arn
-  subnet_ids      = [var.enable_private == true ? aws_subnet.private_subnet.id : aws_subnet.public_subnet.id]
-  release_version = nonsensitive(data.aws_ssm_parameter.eks_ami_release_version.value)
-  instance_types  = ["t3.small"]
+
+  node_role_arn = aws_iam_role.node_group.arn
+
+  subnet_ids = [
+    var.enable_private ? aws_subnet.private_subnet.id : aws_subnet.public_subnet.id
+  ]
+
+  instance_types = ["t3.small"]
+
+  ami_type = "AL2023_x86_64_STANDARD"
 
   scaling_config {
     desired_size = 1
@@ -206,17 +207,13 @@ resource "aws_eks_node_group" "main" {
     min_size     = 1
   }
 
-
-  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
-  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
-    aws_iam_role_policy_attachment.node_group_policy,
-    aws_iam_role_policy_attachment.cni_policy,
-    aws_iam_role_policy_attachment.ecr_policy,
+    aws_iam_role_policy_attachment.eks_cluster,
+    aws_iam_role_policy_attachment.eks_service
   ]
 
   lifecycle {
-    ignore_changes = [scaling_config.0.desired_size]
+    ignore_changes = [scaling_config]
   }
 }
 
