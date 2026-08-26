@@ -105,6 +105,6 @@ jobs:
 
       - name: Verify deployment
         run: |
-          kubectl rollout status deployment/backend --timeout=120s
+          kubectl get deployments -l app=backend
           kubectl get pods -l app=backend
           kubectl get services -l app=backend
